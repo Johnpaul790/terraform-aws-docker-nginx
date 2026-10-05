@@ -18,13 +18,15 @@ Web browser ── HTTP :8080 ── Internet gateway ── Public subnet
 Administrator ── SSH :22 (my_ip CIDR only) ── EC2 instance
 ```
 
+The root configuration connects three local modules: `myapp-vpc` creates the VPC and exports its resource object, `myapp-subnet` receives the VPC ID and default route table ID, and `myapp-server` receives the VPC ID and subnet ID.
+
 The subnet uses the VPC's default route table implicitly. Terraform manages that route table and adds a `0.0.0.0/0` route through the internet gateway. The instance explicitly receives a public IPv4 address and uses the VPC's managed default security group.
 
 ## AWS resources
 
 | Configuration | Purpose |
 | --- | --- |
-| `aws_vpc.myapp-vpc` | Creates a VPC using `vpc_cidr_block`. |
+| `module.myapp-vpc.aws_vpc.myapp-vpc` | Creates a VPC using `vpc_cidr_block`. |
 | `module.myapp-subnet.aws_subnet.myapp-subnet-1` | Creates one subnet in the chosen availability zone. |
 | `module.myapp-subnet.aws_internet_gateway.myapp-igw` | Creates and attaches an internet gateway to the VPC. |
 | `module.myapp-subnet.aws_default_route_table.main-rtb` | Manages the VPC's existing default route table and its internet route. |
@@ -71,7 +73,6 @@ env_prefix          = "dev"
 my_ip               = "203.0.113.10/32" # Replace with your actual public IPv4 /32.
 instance_type       = "t3.micro"
 public_key_location = "/absolute/path/to/your/key.pub"
-private_key_location = "/absolute/path/to/your/key"
 image_name          = "al2023-ami-2023.*-x86_64" # Example Amazon Linux AMI name filter.
 ```
 
@@ -84,17 +85,16 @@ image_name          = "al2023-ami-2023.*-x86_64" # Example Amazon Linux AMI name
 | `my_ip` | CIDR allowed to connect over SSH; normally your public IPv4 address with `/32`. |
 | `instance_type` | EC2 instance type, compatible with the selected AMI. |
 | `public_key_location` | Local public-key file read by Terraform. |
-| `private_key_location` | Required root input, but unused by the resources or modules. Terraform does not read this file. |
 | `image_name` | AMI name filter used to select the newest matching Amazon-owned HVM image. |
 
-All root variables have no defaults or explicit type constraints. The local `terraform.tfvars` inspected for this documentation omits `image_name` and `private_key_location`; supply both to avoid interactive prompts. That file is ignored by Git and may be absent from a fresh clone. Review the AMI selected in the plan; the filter above is an example and availability is not verified by this documentation.
+All root variables have no defaults or explicit type constraints. Supply every input listed above in `terraform.tfvars` to avoid interactive prompts. That file is ignored by Git and may be absent from a fresh clone. Review the AMI selected in the plan; the filter above is an example and availability is not verified by this documentation.
 
 Before planning, check these input requirements:
 
 - Use a subnet CIDR contained within `vpc_cidr_block` and an availability zone in the configured region.
 - Set `my_ip` to a CIDR, not a bare IP address. The example address is a documentation placeholder and will not grant access from your computer.
 - Set `image_name` to an AMI **name or name pattern**, not an AMI ID. The code filters by name, Amazon ownership, and HVM virtualization; it does not separately filter by CPU architecture. Select an architecture-specific pattern that matches `instance_type`.
-- Supply the public key in OpenSSH public-key format. Keep its matching private key for manual SSH access; the unused `private_key_location` input still needs a value because it has no default.
+- Supply the public key in OpenSSH public-key format. Keep its matching private key for manual SSH access; Terraform does not require a private-key path.
 
 These constraints are not enforced through variable validation blocks in the current code.
 
@@ -110,18 +110,19 @@ terraform plan
 
 `init` installs providers and initializes the local modules. Terraform loads `terraform.tfvars` automatically. Inspect the plan's account context, AMI, networking, security rules, and any replacements or deletions before applying.
 
-**Existing local state:** the inspected `terraform.tfstate` contains `aws_vpc.myapp-vpc`, which still matches the current VPC address, and `aws_subnet.myapp-subnet-1`, which no longer matches the subnet’s current address, `module.myapp-subnet.aws_subnet.myapp-subnet-1`. The backup also contains older addresses. There are no state migration declarations in the code. If reusing this workspace, review the plan carefully and reconcile existing state as needed before applying; do not assume existing infrastructure will be preserved unchanged. Keep state files secure and do not delete them to bypass a discrepancy.
+**Local state reviewed on 5 October 2026:** the current `terraform.tfstate` contains no resources or outputs. It therefore provides no current EC2 public IP. A local state backup is present; empty current state alone does not prove that all AWS resources have been removed. If reusing state from an earlier deployment, note that the VPC now lives at `module.myapp-vpc.aws_vpc.myapp-vpc`; older root-level VPC or subnet addresses need reconciliation before applying. There are no `moved` blocks in the configuration. Review the plan before applying and keep state files and backups secure.
 
 ## Terraform outputs
 
 | Location | Output | Value |
 | --- | --- | --- |
 | Root | `ec2_public_ip` | Public IPv4 address of the EC2 instance; use this for browser access. |
+| VPC module | `vpc` | VPC resource object, used by the root configuration to pass its ID and default route table ID to the other modules. |
 | Subnet module | `subnet` | Subnet resource object, used by the root configuration to pass its ID to the server module. |
 | Webserver module | `instance` | EC2 instance ID. |
 | Webserver module | `public_ip` | EC2 public IPv4 address, exposed by the root output. |
 
-Only `ec2_public_ip` is exposed by the root `terraform output` command. Both child modules use the root AWS provider configuration; their `providers.tf` files are empty.
+Only `ec2_public_ip` is exposed by the root `terraform output` command. All three child modules use the root AWS provider configuration; their `providers.tf` files are empty.
 
 ## Apply
 
@@ -144,7 +145,9 @@ The untagged `nginx` reference uses the default `latest` tag. There is no custom
 
 ### Deployment evidence
 
-The screenshot below shows the nginx welcome page from the deployed web application, confirming the browser displayed **“Welcome to nginx!”**.
+**5 October 2026:** After the module refactor, the nginx webpage was accessible at `http://<ec2_public_ip>:8080`, as before.
+
+The screenshot below preserves the earlier deployment evidence showing **“Welcome to nginx!”**.
 
 ![nginx welcome page from the deployed web application](pictures/nginx-welcome.png)
 
@@ -201,7 +204,7 @@ Review the destruction plan and enter `yes` to remove the resources tracked by t
 
 ```text
 .
-├── main.tf                         # AWS region, VPC, and module wiring
+├── main.tf                         # AWS region and VPC/subnet/server module wiring
 ├── providers.tf                    # AWS provider requirement
 ├── variables.tf                    # Required root inputs
 ├── outputs.tf                      # EC2 public IP output
@@ -210,10 +213,16 @@ Review the destruction plan and enter `yes` to remove the resources tracked by t
 ├── README.md
 ├── pictures/
 │   └── nginx-welcome.png           # Browser screenshot of the nginx welcome page
+├── terraform.tfvars.example        # Example inputs to copy and customize
 ├── terraform.tfvars                # Local input values (ignored; create as needed)
 ├── terraform.tfstate               # Local state (ignored, when present)
 ├── terraform.tfstate.backup        # Local state backup (ignored, when present)
 └── modules/
+    ├── vpc/
+    │   ├── main.tf                 # VPC resource
+    │   ├── variables.tf            # VPC CIDR and environment prefix
+    │   ├── outputs.tf              # VPC resource output
+    │   └── providers.tf            # Currently empty
     ├── subnet/
     │   ├── main.tf                 # Subnet, internet gateway, default route table
     │   ├── variables.tf            # Network module inputs
@@ -237,5 +246,3 @@ Review the destruction plan and enter `yes` to remove the resources tracked by t
 - AMI selection uses `most_recent`, bootstrap updates packages, and the nginx image is unpinned. Results can change between deployments. No application health checks, centralized logging, or high availability are configured.
 - No remote backend is configured: protect local state and backups because they can contain sensitive infrastructure information. Avoid concurrent operations against the same state.
 - `.gitignore` excludes `.terraform/*`, `*.tfstate`, `*.tfstate.*`, and `*.tfvars`. It does **not** explicitly exclude `*.tfvars.json`, saved plan files, private keys, or crash logs. Keep such files out of commits. The provider lock file is intentionally retained for consistent provider selection.
-
-This README describes the inspected configuration and the deployment owner’s supplied nginx welcome-page screenshot. Independent HTTP verification could not be completed from the documentation environment.
