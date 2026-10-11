@@ -22,8 +22,9 @@ The root configuration connects three local modules: `myapp-vpc` creates the VPC
 
 The subnet uses the VPC's default route table implicitly. Terraform manages that route table and adds a `0.0.0.0/0` route through the internet gateway. The instance explicitly receives a public IPv4 address and uses the VPC's managed default security group.
 
-## AWS resources
 For a more detailed view of the infrastructure, see the [detailed architecture diagram](architecture.md).
+
+## AWS resources
 
 | Configuration | Purpose |
 | --- | --- |
@@ -145,7 +146,7 @@ The untagged `nginx` reference uses the default `latest` tag. There is no custom
 
 ### Deployment evidence
 
-**5 October 2026:** After the module refactor, the nginx webpage was accessible at `http://<ec2_public_ip>:8080`, as before.
+After the module refactor, the nginx webpage was successfully accessible at `http://<ec2_public_ip>:8080`.
 
 The screenshot below preserves the earlier deployment evidence showing **“Welcome to nginx!”**.
 
