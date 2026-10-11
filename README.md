@@ -211,6 +211,7 @@ Review the destruction plan and enter `yes` to remove the resources tracked by t
 ├── .terraform.lock.hcl             # Provider version and checksum lock
 ├── .gitignore                      # Local Terraform files excluded from Git
 ├── README.md
+├── architecture.md                 # Detailed infrastructure architecture
 ├── pictures/
 │   └── nginx-welcome.png           # Browser screenshot of the nginx welcome page
 ├── terraform.tfvars.example        # Example inputs to copy and customize
