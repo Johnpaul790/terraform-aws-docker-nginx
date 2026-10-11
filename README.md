@@ -110,7 +110,6 @@ terraform plan
 
 `init` installs providers and initializes the local modules. Terraform loads `terraform.tfvars` automatically. Inspect the plan's account context, AMI, networking, security rules, and any replacements or deletions before applying.
 
-**Local state reviewed on 5 October 2026:** the current `terraform.tfstate` contains no resources or outputs. It therefore provides no current EC2 public IP. A local state backup is present; empty current state alone does not prove that all AWS resources have been removed. If reusing state from an earlier deployment, note that the VPC now lives at `module.myapp-vpc.aws_vpc.myapp-vpc`; older root-level VPC or subnet addresses need reconciliation before applying. There are no `moved` blocks in the configuration. Review the plan before applying and keep state files and backups secure.
 
 ## Terraform outputs
 
