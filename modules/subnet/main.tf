@@ -1,6 +1,6 @@
 resource "aws_subnet" "myapp-subnet-1" {
-  vpc_id = var.vpc_id
-  cidr_block = var.subnet_cidr_block
+  vpc_id            = var.vpc_id
+  cidr_block        = var.subnet_cidr_block
   availability_zone = var.avail_zone
   tags = {
     Name : "${var.env_prefix}-subnet-1"
