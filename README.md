@@ -23,6 +23,7 @@ The root configuration connects three local modules: `myapp-vpc` creates the VPC
 The subnet uses the VPC's default route table implicitly. Terraform manages that route table and adds a `0.0.0.0/0` route through the internet gateway. The instance explicitly receives a public IPv4 address and uses the VPC's managed default security group.
 
 ## AWS resources
+For a more detailed view of the infrastructure, see the [detailed architecture diagram](architecture.md).
 
 | Configuration | Purpose |
 | --- | --- |
